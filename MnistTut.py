@@ -1,4 +1,5 @@
 import tensorflow as tf
+import time
 from tensorflow.examples.tutorials.mnist import input_data
 
 mnist = input_data.read_data_sets("./data/mnist/", one_hot=True)
@@ -66,4 +67,6 @@ def train_neural_network(x):
 		accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
 		print('Accuracy: ', accuracy.eval({x:mnist.test.images, y:mnist.test.labels}))
 
+startTime = time.time()
 train_neural_network(x)
+print("Execution time : ", time.time() - startTime)
