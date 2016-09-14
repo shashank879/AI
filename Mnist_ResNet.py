@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from ResNet import ResNet_v1_18
+from ResNet import ResNet_20
 from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
 
@@ -12,7 +12,8 @@ x, y = mnist.train.next_batch(100)
 x = x.reshape([-1, 28, 28, 1])
 
 # create model for this data
-model = ResNet_v1_18()
-model.build_and_train_model(x, y)
+net = ResNet_20()
+net.build_model(28, 28, 1, 10)
+net.train_model(x, y)
 
 print("Done")
