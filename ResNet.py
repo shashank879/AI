@@ -1,7 +1,9 @@
 import numpy as np
 import tensorflow as tf
+import sys
+import time
 
-EPOCHS = 10
+EPOCHS = 1
 BATCH_SIZE = 100
 
 def weight_variable(shape):
@@ -21,8 +23,8 @@ def conv2d(x, conv_size, in_channels, out_channels, stride):
 def max_pool(x, size, stride):
     return tf.nn.max_pool(x, ksize=[1, size, size, 1], strides=[1, stride, stride, 1], padding='SAME')
 
-def avg_pool(x, size, stride):
-    return tf.nn.avg_pool(x, ksize=[1, size, size, 1], strides=[1, stride, stride, 1], padding='SAME')
+def avg_pool(x, size, stride, padding='SAME'):
+    return tf.nn.avg_pool(x, ksize=[1, size, size, 1], strides=[1, stride, stride, 1], padding=padding)
 
 def batch_normalise(x):
     x_mean, x_var = tf.nn.moments(x, [0])
@@ -30,6 +32,10 @@ def batch_normalise(x):
     return tf.nn.batch_normalization(x, x_mean, x_var, None, None, variance_epsilon=1e-3)
 
 class ResNet:
+
+    def __init__(self):
+        self.model = None
+        self.sess = tf.Session()
 
     def highway(self, x, in_channels, out_channels, stride):
         if in_channels != out_channels:
@@ -50,40 +56,47 @@ class ResNet:
         return y
 
     def build_model(self, width, height, channels):
-        self.model = None
+        return None
 
     def train_model(self, data, outputs):
         prediction = self.model
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, outputs))
-
+        sess = self.sess
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, self.y))
         optimizer = tf.train.AdamOptimizer().minimize(cost)
-        with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
-            samples = tf.size(data)[0]
-            for epoch in range(EPOCHS):
-                epoch_loss = 0
-                for i in range(samples/BATCH_SIZE):
-                    epoch_x = data[i*BATCH_SIZE:(i+1)*BATCH_SIZE, :, :, :]
-                    epoch_y = outputs[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-                    _, c = sess.run([optimizer, cost], feed_dict={self.x:epoch_x, self.y:epoch_y})
-                    epoch_loss += c
-                
-                print('Epoch: ', epoch+1, ', Loss: ', epoch_loss)
 
-            correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
-            accuracy = tf.reduce_mean(tf.cast(corrcect, 'float'))
-            print("Train Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}))
+        sess.run(tf.initialize_all_variables())
+        samples = np.shape(data)[0]
+        for epoch in range(EPOCHS):
+            epoch_loss = 0
+            nBatches = int(samples/BATCH_SIZE)
+            for i in range(nBatches):
+                epoch_x = data[i*BATCH_SIZE:(i+1)*BATCH_SIZE, :, :, :]
+                epoch_y = outputs[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+                _, c = sess.run([optimizer, cost], feed_dict={self.x:epoch_x, self.y:epoch_y})
+                epoch_loss += c
+                    
+                print('Epoch progress... {0}%'.format(int(i/nBatches*100)), end='\r')
+                
+            print('Epoch: ', epoch+1, ', Loss: ', epoch_loss)
+
+        correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+        print("Calculating accuracy on the training set...")
+        print("Train Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
 
     def test_model(self, data, outputs):
         prediction = self.model
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
-        accuracy = tf.reduce_mean(tf.cast(corrcect, 'float'))
-        print("Test Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}))
+        accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
+        print("Calculating accuracy on the testing set...")
+        print("Test Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
+            
         
     def eval_model(self, data):
         prediction = self.model
-        output = prediction.eval(feed_dict={self.x:data})
-        print(output)
+        output = tf.cast(tf.argmax(prediction, 1), 'float')
+        self.sess.run(output, feed_dict={self.x:data})
+        print("Class: ", output)
 
 class ResNet_20(ResNet):
 
@@ -101,10 +114,11 @@ class ResNet_20(ResNet):
         model = self.basic_unit(model, 3, 16, 1)
         model = self.basic_unit(model, 3, 32, 2)
         model = self.basic_unit(model, 3, 64, 2)
-        model = avg_pool(model, 7, 1)
-        model = tf.reshape(model, [-1, 7*7, 1])
-        W = weight_variable([256, nClasses])
-        model =  tf.add(tf.matmul(model, W) + bias_variable([None, nClasses]))
+        side = model.get_shape()[1]
+        model = avg_pool(model, side, 1, padding='VALID')
+        model = tf.reshape(model, [-1, 64])
+        W = weight_variable([64, nClasses])
+        model =  tf.add(tf.matmul(model, W), bias_variable([nClasses]))
 
         # Save for later
         self.model = model
