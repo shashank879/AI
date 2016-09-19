@@ -1,9 +1,7 @@
 import numpy as np
 import tensorflow as tf
-import sys
-import time
 
-EPOCHS = 1
+EPOCHS = 5
 BATCH_SIZE = 100
 
 def weight_variable(shape):
@@ -31,11 +29,16 @@ def batch_normalise(x):
     print (x_mean, x_var)
     return tf.nn.batch_normalization(x, x_mean, x_var, None, None, variance_epsilon=1e-3)
 
-class ResNet:
+class ResNet():
 
     def __init__(self):
         self.model = None
         self.sess = tf.Session()
+        print("Session started")
+
+    def close(self):
+        self.sess.close()
+        print("Session closed")
 
     def highway(self, x, in_channels, out_channels, stride):
         if in_channels != out_channels:
@@ -54,9 +57,6 @@ class ResNet:
         y = tf.add(shortcut, y)
         self.channels = channels
         return y
-
-    def build_model(self, width, height, channels):
-        return None
 
     def train_model(self, data, outputs):
         prediction = self.model
@@ -90,7 +90,6 @@ class ResNet:
         accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
         print("Calculating accuracy on the testing set...")
         print("Test Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
-            
         
     def eval_model(self, data):
         prediction = self.model
@@ -98,7 +97,7 @@ class ResNet:
         self.sess.run(output, feed_dict={self.x:data})
         print("Class: ", output)
 
-class ResNet_20(ResNet):
+class ResNet_5(ResNet):
 
     def build_model(self, width, height, nChannels, nClasses):
         # Input and Output Placeholders
@@ -107,13 +106,19 @@ class ResNet_20(ResNet):
         self.channels = nChannels
 
         # Create Model
+
+        # Layer 1
         model = conv2d(self.x, 3, self.channels, 16, 1)
         self.channels = 16
         model = batch_normalise(model)
         model = tf.nn.relu(model)
+
+        # Layer 2:4
         model = self.basic_unit(model, 3, 16, 1)
         model = self.basic_unit(model, 3, 32, 2)
         model = self.basic_unit(model, 3, 64, 2)
+
+        # Layer 5
         side = model.get_shape()[1]
         model = avg_pool(model, side, 1, padding='VALID')
         model = tf.reshape(model, [-1, 64])

@@ -12,15 +12,17 @@ train_x = mnist.train.images
 train_y = mnist.train.labels
 train_x = train_x.reshape([-1, 28, 28, 1])
 
-# create model for this data
-net = ResNet_20()
-net.build_model(28, 28, 1, 10)
-net.train_model(train_x, train_y)
-
 test_x = mnist.test.images
 test_y = mnist.test.labels
 test_x = test_x.reshape([-1, 28, 28, 1])
+
+# create model for this data
+net = ResNet_20()
+net.build_model(28, 28, 1, 10)
+
+net.train_model(train_x, train_y)
 net.test_model(test_x, test_y)
 net.eval_model(test_x[0:1,:,:,:])
 
+net.close()
 print("Done")
