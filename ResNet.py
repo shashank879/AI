@@ -94,8 +94,7 @@ class ResNet():
     def eval_model(self, data):
         prediction = self.model
         output = tf.cast(tf.argmax(prediction, 1), 'float')
-        self.sess.run(output, feed_dict={self.x:data})
-        print("Class: ", output)
+        print("Class: ", output.eval(feed_dict={self.x:data}, session=self.sess))
 
 class ResNet_5(ResNet):
 
