@@ -20,7 +20,7 @@ test_x = test_x.reshape([-1, 28, 28, 1])
 net = ResNet_5()
 net.build_model(28, 28, 1, 10)
 
-net.train_model(train_x[0:100,:,:,:], train_y[0:100,:], name="resnet_5")
+net.train_model(train_x, train_y, name="resnet_5")
 net.test_model(test_x, test_y)
 net.eval_model(test_x[0:1,:,:,:])
 
