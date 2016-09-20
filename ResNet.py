@@ -58,7 +58,7 @@ class ResNet():
         self.channels = channels
         return y
 
-    def load_model(name):
+    def load_model(self, name):
         path = "./models/"+name+".ckpt"
         tf.train.Saver().restore(self.sess, path)
         print("Model restored...")
