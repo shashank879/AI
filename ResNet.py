@@ -1,33 +1,9 @@
 import numpy as np
 import tensorflow as tf
+import Utilities as utils
 
 EPOCHS = 5
 BATCH_SIZE = 100
-
-def weight_variable(shape, name=None):
-    initial = tf.truncated_normal(shape, stddev=0.1, name=name)
-    return tf.Variable(initial)
-
-def bias_variable(shape, name=None):
-    initial = tf.constant(0.1, shape=shape, name=name)
-    return tf.Variable(initial)
-
-def conv2d(x, conv_size, in_channels, out_channels, stride, name=None):
-    weights = weight_variable([conv_size, conv_size, in_channels, out_channels], name=name+"_w")
-    biases = bias_variable([out_channels], name=name+"_b")
-    conv = tf.nn.conv2d(x, weights, strides=[1, stride, stride, 1], padding='SAME')
-    return tf.add(conv, biases)
-
-def max_pool(x, size, stride):
-    return tf.nn.max_pool(x, ksize=[1, size, size, 1], strides=[1, stride, stride, 1], padding='SAME')
-
-def avg_pool(x, size, stride, padding='SAME'):
-    return tf.nn.avg_pool(x, ksize=[1, size, size, 1], strides=[1, stride, stride, 1], padding=padding)
-
-def batch_normalise(x):
-    x_mean, x_var = tf.nn.moments(x, [0])
-    print (x_mean, x_var)
-    return tf.nn.batch_normalization(x, x_mean, x_var, None, None, variance_epsilon=1e-3)
 
 class ResNet():
 
@@ -42,17 +18,17 @@ class ResNet():
 
     def highway(self, x, in_channels, out_channels, stride, name=None):
         if in_channels != out_channels:
-            return conv2d(x, 1, in_channels, out_channels, stride, name+"_conv")
+            return utils.conv2d(x, 1, in_channels, out_channels, stride, name+"_conv")
         else:
             return tf.identity(x)
 
     def basic_unit(self, x, conv_size, channels, stride, name=None):
-        y = batch_normalise(x)
+        y = utils.batch_normalise(x)
         y = tf.nn.relu(y)
-        y = conv2d(y, conv_size, self.channels, channels, stride, name+"_conv1")
-        y = batch_normalise(y)
+        y = utils.conv2d(y, conv_size, self.channels, channels, stride, name+"_conv1")
+        y = utils.batch_normalise(y)
         y = tf.nn.relu(y)
-        y = conv2d(y, conv_size, channels, channels, 1, name+"_conv2")
+        y = utils.conv2d(y, conv_size, channels, channels, 1, name+"_conv2")
         shortcut = self.highway(x, self.channels, channels, stride, name+"_highway")
         y = tf.add(shortcut, y)
         self.channels = channels
@@ -118,9 +94,9 @@ class ResNet_5(ResNet):
         # Create Model
 
         # Layer 1
-        model = conv2d(self.x, 3, self.channels, 16, 1, name="layer_1_conv")
+        model = utils.conv2d(self.x, 3, self.channels, 16, 1, name="layer_1_conv")
         self.channels = 16
-        model = batch_normalise(model)
+        model = utils.batch_normalise(model)
         model = tf.nn.relu(model)
 
         # Layer 2:4
@@ -130,10 +106,10 @@ class ResNet_5(ResNet):
 
         # Layer 5
         side = model.get_shape()[1]
-        model = avg_pool(model, side, 1, padding='VALID')
+        model = utils.avg_pool(model, side, 1, padding='VALID')
         model = tf.reshape(model, [-1, 64])
-        W = weight_variable([64, nClasses], "layer_5_w")
-        model =  tf.add(tf.matmul(model, W), bias_variable([nClasses], "layer_5_b"))
+        W = utils.weight_variable([64, nClasses], "layer_5_w")
+        model =  tf.add(tf.matmul(model, W), utils.bias_variable([nClasses], "layer_5_b"))
 
         # Save for later
         self.model = model
