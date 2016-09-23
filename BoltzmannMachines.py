@@ -35,9 +35,6 @@ class RestrictedBoltzmannMachine:
 
         self.sess = tf.Session()
 
-        if name is not None:
-            self.load_model(name)
-
     def close(self):
         self.sess.close()
 
@@ -73,42 +70,15 @@ class RestrictedBoltzmannMachine:
     def save_path(self):
         return "./saved/" + self.name + ".ckpt"
 
-    def load_model(self, name):
+    def load_model(self):
         path = self.save_path()
         file = Path(path)
         if file.is_file():
             tf.train.Saver().restore(self.sess, path)
             print("Model loaded from path... " + path)
 
-    def train_model(self, data, batch_size=10):
-        print("Training model...")
-        self.sess.run(tf.initialize_all_variables())
-        np.random.shuffle(data)
-        nBatches = int(data.shape[0]/BATCH_SIZE)
-        for epoch in range(EPOCHS):
-            epoch_loss = 0
-            for i in range(nBatches): 
-                epoch_data = data[BATCH_SIZE*i:BATCH_SIZE*(i+1),:]
-                v_rand = np.random.rand(epoch_data.shape[0], self.n_features)
-                h_rand = np.random.rand(epoch_data.shape[0], self.n_hidden)
-                feed_dict={self.visible_units: epoch_data,
-                           self.v_rand: v_rand,
-                           self.h_rand: h_rand}
-                _,_,_,cost = self.sess.run([self.w_update, self.v_b_update, self.h_b_update, self.cost], feed_dict=feed_dict)
-                print(cost)
-                epoch_loss += cost
-            
-            print("Epoch loss : ", epoch_loss)
-        print("Model trained...")
-
-        if self.name != None:
-            saver = tf.train.Saver()
-            print("Saving model...")
-            path = saver.save(self.sess, self.save_path())
-            print("Model saved at... ", path)
-
     def build_model(self, n_features, n_hidden):
-
+        print("Building model...")
         self.n_features = n_features
         self.n_hidden = n_hidden
 
@@ -144,6 +114,31 @@ class RestrictedBoltzmannMachine:
         self.cost = tf.sqrt(tf.reduce_mean(tf.square(self.visible_units - v_prb)))
 
         print("Model ready...")
+
+    def train_model(self, data, batch_size=10):
+        print("Training model...")
+        self.sess.run(tf.initialize_all_variables())
+        np.random.shuffle(data)
+        nBatches = int(data.shape[0]/BATCH_SIZE)
+        for epoch in range(EPOCHS):
+            epoch_loss = 0
+            for i in range(nBatches): 
+                epoch_data = data[BATCH_SIZE*i:BATCH_SIZE*(i+1),:]
+                v_rand = np.random.rand(epoch_data.shape[0], self.n_features)
+                h_rand = np.random.rand(epoch_data.shape[0], self.n_hidden)
+                feed_dict={self.visible_units: epoch_data,
+                           self.v_rand: v_rand,
+                           self.h_rand: h_rand}
+                _,_,_,cost = self.sess.run([self.w_update, self.v_b_update, self.h_b_update, self.cost], feed_dict=feed_dict)
+                epoch_loss += cost
+                print('Epoch progress... {0}%'.format(int(i/nBatches*100)), end='\r')
+            print('Epoch: ', epoch+1, ', Reconstruction error: ', epoch_loss)
+        print("Model trained...")
+
+        if self.name != None:
+            saver = tf.train.Saver()
+            path = saver.save(self.sess, self.save_path())
+            print("Model saved at... ", path)
 
     def show(self):
         G = nx.complete_bipartite_graph(self.n_features, self.n_hidden)

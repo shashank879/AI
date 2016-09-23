@@ -14,9 +14,6 @@ class ResNet():
         self.sess = tf.Session()
         print("Session started")
 
-        if name != None:
-            self.load_model()
-
     def close(self):
         self.sess.close()
         print("Session closed")
@@ -66,8 +63,7 @@ class ResNet():
                 _, c = sess.run([optimizer, cost], feed_dict={self.x:epoch_x, self.y:epoch_y})
                 epoch_loss += c
                     
-                print('Epoch progress... {0}%'.format(int(i/nBatches*100)), end='\r')
-                
+                print('Epoch progress... {0}%'.format(int(i/nBatches*100)), end='\r')    
             print('Epoch: ', epoch+1, ', Loss: ', epoch_loss)
 
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
@@ -76,7 +72,6 @@ class ResNet():
         print("Train Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
 
         if name != None:
-            print("Saving model...")
             save_path = tf.train.Saver().save(sess, self.save_path())
             print("Model saved at... ", save_path)
 

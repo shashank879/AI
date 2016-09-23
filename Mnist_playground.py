@@ -28,13 +28,11 @@ test_y = mnist.test.labels
 # net.eval_model(test_x[0:1,:,:,:])
 
 #RBM
-train_x = train_x[0:100,:]
-train_y = train_y[0:100,:]
 net = RBM(name="mnist_rbm")
-n_features = train_x.shape[1] + train_y.shape[1]
+n_features = train_x.shape[1]
 net.build_model(n_features, 100)
-data = np.concatenate((train_x, train_y), axis=1)
-net.train_model(data)
+# net.train_model(train_x)
+net.load_model()
 
 net.close()
 print("Done")
