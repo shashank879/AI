@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import Utilities as utils
+from pathlib import Path
 
 EPOCHS = 5
 BATCH_SIZE = 100
@@ -43,8 +44,10 @@ class ResNet():
 
     def load_model(self):
         path = self.save_path()
-        tf.train.Saver().restore(self.sess, path)
-        print("Model restored from path... ", path)
+        file = Path(path)
+        if file.is_file():
+            tf.train.Saver().restore(self.sess, path)
+            print("Model restored from path... ", path)
 
     def train_model(self, data, outputs, name=None):
         prediction = self.model
