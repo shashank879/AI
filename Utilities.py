@@ -24,3 +24,4 @@ def batch_normalise(x):
     x_mean, x_var = tf.nn.moments(x, [0])
     print (x_mean, x_var)
     return tf.nn.batch_normalization(x, x_mean, x_var, None, None, variance_epsilon=1e-3)
+    

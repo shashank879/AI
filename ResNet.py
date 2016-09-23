@@ -7,10 +7,14 @@ BATCH_SIZE = 100
 
 class ResNet():
 
-    def __init__(self):
+    def __init__(self, name=None):
         self.model = None
+        self.name = name
         self.sess = tf.Session()
         print("Session started")
+
+        if name != None:
+            self.load_model()
 
     def close(self):
         self.sess.close()
@@ -34,10 +38,13 @@ class ResNet():
         self.channels = channels
         return y
 
-    def load_model(self, name):
-        path = "./models/"+name+".ckpt"
+    def save_path(self):
+        return "./saved/" + self.name + ".ckpt"
+
+    def load_model(self):
+        path = self.save_path()
         tf.train.Saver().restore(self.sess, path)
-        print("Model restored...")
+        print("Model restored from path... ", path)
 
     def train_model(self, data, outputs, name=None):
         prediction = self.model
@@ -67,9 +74,8 @@ class ResNet():
 
         if name != None:
             print("Saving model...")
-            path = "./models/"+name+".ckpt"
-            save_path = tf.train.Saver().save(sess, path)
-            print("Model saved at", save_path)
+            save_path = tf.train.Saver().save(sess, self.save_path())
+            print("Model saved at... ", save_path)
 
     def test_model(self, data, outputs):
         prediction = self.model
