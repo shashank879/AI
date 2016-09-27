@@ -1,13 +1,11 @@
 import numpy as np
 import tensorflow as tf
-import networkx as nx
-# import matplotlib.pyplot as plt
 import Utilities as utils
 from pathlib import Path
 
-LEARN_RATE = 0.01
+LEARN_RATE = 0.0001
 BATCH_SIZE = 10
-EPOCHS = 5
+EPOCHS = 10
 
 def sample_from_prb(prb, random):
     sign = tf.sign(prb - random)
@@ -38,26 +36,33 @@ class RestrictedBoltzmannMachine:
     def close(self):
         self.sess.close()
 
-    def sample_hidden(self, visible):
+    def sample_hidden_from_visible(self, visible):
         prb = tf.nn.sigmoid(tf.add(tf.matmul(visible, self.w), self.h_b))
         sample = sample_from_prb(prb, self.h_rand)
         return prb, sample
 
-    def sample_visible(self, hidden):
+    def sample_visible_from_hidden(self, hidden):
         act = tf.matmul(hidden, tf.transpose(self.w)) + self.v_b
-
+        prb = None
         if self.visible_units_type == 'bin':
-            return tf.nn.sigmoid(act)
+            prb = tf.nn.sigmoid(act)
         elif self.visible_units_type == 'gauss':
-            return tf.truncated_normal(shape=[1, self.n_features], mean=act, stddev=1.0)
-
-        return None
+            prb = tf.truncated_normal(shape=[1, self.n_features], mean=act, stddev=1.0)
+        
+        sample = sample_from_prb(prb, self.v_rand)
+        return prb, sample
 
     def gibbs_step_vhv(self, visible):
-        h0_prb, h0_samples = self.sample_hidden(visible)
-        v_prb = self.sample_visible(h0_prb)
-        h1_prb, h1_samples =  self.sample_hidden(v_prb)
-        return h0_prb, h0_samples, v_prb, h1_prb 
+        h0_prb, h0_samples = self.sample_hidden_from_visible(visible)
+        v_prb, _ = self.sample_visible_from_hidden(h0_prb)
+        h1_prb, h1_samples = self.sample_hidden_from_visible(v_prb)
+        return h0_prb, h0_samples, v_prb, h1_prb, h1_samples
+    
+    def gibbs_step_hvh(self, hidden):
+        v0_prb, v0_samples = self.sample_visible_from_hidden(hidden)
+        h_prb, _ = self.sample_hidden_from_visible(v0_prb)
+        v1_prb, v1_samples = self.sample_visible_from_hidden(h_prb)
+        return v0_prb, v0_samples, h_prb, v1_prb, v1_samples
 
     def positive(self, visible, hidden_prb, hidden_samples):
         if self.visible_units_type == 'bin':
@@ -96,24 +101,34 @@ class RestrictedBoltzmannMachine:
             v_b = Visible biases (v)
             h_b = Hidden biases (h)
         """
-        self.w = utils.weight_variable([n_features, n_hidden], name="weights")
-        self.v_b = utils.bias_variable([n_features], name="visible_biases")
-        self.h_b = utils.bias_variable([n_hidden], name="hidden_biases")
+        self.w = utils.weight_variable([n_features, n_hidden], stddev=0.01, name="weights")
+        self.v_b = utils.bias_variable([n_features], value=0, name="visible_biases")
+        self.h_b = utils.bias_variable([n_hidden], value=0, name="hidden_biases")
 
-        h0_prb, h0_samples, v_prb, h1_prb = self.gibbs_step_vhv(self.visible_units)
+        # Calculate 1st gibbs step
+        h0_prb, h0_samples, v_prb, h1_prb, h1_samples = self.gibbs_step_vhv(self.visible_units)
+        # 1st part of the CD
         positive = self.positive(self.visible_units, h0_prb, h0_samples)
 
+        # Calculate the remaining gibbs steps
+        nn_input = v_prb
         for step in range(self.gibbs_steps - 1):
-            h_prb, h_samples, v_prb, h1_prb = self.gibbs_step_vhv(v_prb)
+            h_prb, h_samples, v_prb, h1_prb, h1_samples = self.gibbs_step_vhv(nn_input)
+            nn_input = v_prb
         
+        # 2nd part of the CD
         negative = tf.matmul(tf.transpose(v_prb), h1_prb)
 
+        # Update rules for the weights and biases
         self.w_update = self.w.assign_add(LEARN_RATE * (positive - negative) / BATCH_SIZE)
         self.h_b_update = self.h_b.assign_add(LEARN_RATE * tf.reduce_mean(h0_prb - h1_prb, 0))
         self.v_b_update = self.v_b.assign_add(LEARN_RATE * tf.reduce_mean(self.visible_units - v_prb, 0))
+
+        # Mean squared error for reconstruction cost
         self.cost = tf.sqrt(tf.reduce_mean(tf.square(self.visible_units - v_prb)))
 
         print("Model ready...")
+        return self.visible_units, self.hidden_units
 
     def train_model(self, data, batch_size=10):
         print("Training model...")
@@ -140,23 +155,28 @@ class RestrictedBoltzmannMachine:
             path = saver.save(self.sess, self.save_path())
             print("Model saved at... ", path)
 
-    def show(self):
-        G = nx.complete_bipartite_graph(self.n_features, self.n_hidden)
-        w, v_b, h_b = self.sess.run([self.w, self.v_b, self.h_b])
-        b = np.concatenate((v_b, h_b))
-        pos = dict()
-        for i in G.nodes():
-            G.node[i]['bias'] = b[i]
-            pos[i] = (G.node[i]['bipartite'], i if i < self.n_features else i - self.n_features)
-        for i in range(self.n_features):
-            for j in range(self.n_hidden):
-                e = G[i][j + self.n_features]
-                e['weight'] = w[i][j]
+    def eval_visible(self, hidden_states, gibbs_steps):
+        v0_prb, v0_samples, h_prb, v1_prb, v1_samples = self.gibbs_step_hvh(self.hidden_units)
+        # For sampling from a trained RBM
+        for step in range(gibbs_steps-1):
+            v0_prb, v0_samples, h_prb, v1_prb, v1_samples = self.gibbs_step_hvh(h_prb)
+            
+        error = tf.sqrt(tf.reduce_mean(tf.square(self.hidden_units - h_prb), 0))
+        v_rand = np.random.rand(hidden_states.shape[0], self.n_features)
+        feed_dict={self.hidden_units : hidden_states,
+                   self.v_rand : v_rand}
+        return self.sess.run([v0_prb, error], feed_dict=feed_dict)
 
-        nx.draw(G, pos=pos)
-        nx.draw_networkx_labels(G, pos = pos)
-        nx.draw_networkx_edge_labels(G, pos = nx.spring_layout(G))
-        # plt.show()
+    def eval_hidden(self, visible_states):
+        self.hidden,_ = self.sample_hidden_from_visible(self.visible_units)
+        h_rand = np.random.rand(visible_states.shape[0], self.n_hidden)
+        feed_dict={self.visible_units : visible_states, 
+                   self.h_rand : h_rand}
+        prb,states = self.sess.run(self.hidden, feed_dict=feed_dict)
+        return states
+
+    def show_weight_graph(self):
+        w = self.w.eval()
 
 # Test run
 # rbm = RestrictedBoltzmannMachine()
