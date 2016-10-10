@@ -40,17 +40,17 @@ n_features = train_x.shape[1]
 n_hidden = 200
 net = RBM(gibbs_steps=5, name=("mnist_rbm" + str(n_hidden)))
 net.build_model(n_features, n_hidden)
-net.train_model(train_x)
-# net.load_model()
+# net.train_model(train_x)
+net.load_model()
 # net.show()
 
 y = np.array([[i==j for j in range(n_hidden)] for i in range(n_hidden)], dtype='float32')
 y, error = net.eval_visible(y, 100)
 print("Variation", np.mean(np.var(y,0)))
 print("Reconstruction error... ", np.mean(error))
-img = np.reshape(y, [n_hidden, 28, 28])
-img = img*255
-img_C = utils.combine_images(img, 20)
+imgs = np.reshape(y, [n_hidden, 28, 28])
+imgs = imgs*255
+img_C = utils.combine_images(imgs, 20)
 img_C.show()
 
 # rep = net.eval_hidden(test_x[0:2000,:])

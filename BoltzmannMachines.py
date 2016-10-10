@@ -72,6 +72,12 @@ class RestrictedBoltzmannMachine:
 
         return None
 
+    def free_energy(self, visible):
+        wx_b = tf.matmul(visible, self.w) + self.h_b
+        hidden_term = tf.reduce_mean(tf.log(1 + tf.exp(wx_b)), 1)
+        vbias_term = tf.matmul(visible, self.v_b)
+        return (- hidden_term - vbias_term)
+
     def save_path(self):
         return "./saved/" + self.name + ".ckpt"
 
