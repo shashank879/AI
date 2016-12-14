@@ -6,6 +6,7 @@ from pathlib import Path
 EPOCHS = 5
 BATCH_SIZE = 100
 
+
 class ResNet():
 
     def __init__(self, name=None):
@@ -20,18 +21,18 @@ class ResNet():
 
     def highway(self, x, in_channels, out_channels, stride, name=None):
         if in_channels != out_channels:
-            return utils.conv2d(x, 1, in_channels, out_channels, stride, name+"_conv")
+            return utils.conv2d(x, 1, in_channels, out_channels, stride, name + "_conv")
         else:
             return tf.identity(x)
 
     def basic_unit(self, x, conv_size, channels, stride, name=None):
         y = utils.batch_normalise(x)
         y = tf.nn.relu(y)
-        y = utils.conv2d(y, conv_size, self.channels, channels, stride, name+"_conv1")
+        y = utils.conv2d(y, conv_size, self.channels, channels, stride, name + "_conv1")
         y = utils.batch_normalise(y)
         y = tf.nn.relu(y)
-        y = utils.conv2d(y, conv_size, channels, channels, 1, name+"_conv2")
-        shortcut = self.highway(x, self.channels, channels, stride, name+"_highway")
+        y = utils.conv2d(y, conv_size, channels, channels, 1, name + "_conv2")
+        shortcut = self.highway(x, self.channels, channels, stride, name + "_highway")
         y = tf.add(shortcut, y)
         self.channels = channels
         return y
@@ -56,22 +57,22 @@ class ResNet():
         samples = np.shape(data)[0]
         for epoch in range(EPOCHS):
             epoch_loss = 0
-            nBatches = int(samples/BATCH_SIZE)
+            nBatches = int(samples / BATCH_SIZE)
             for i in range(nBatches):
-                epoch_x = data[i*BATCH_SIZE:(i+1)*BATCH_SIZE, :, :, :]
-                epoch_y = outputs[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-                _, c = sess.run([optimizer, cost], feed_dict={self.x:epoch_x, self.y:epoch_y})
+                epoch_x = data[i * BATCH_SIZE:(i + 1) * BATCH_SIZE, :, :, :]
+                epoch_y = outputs[i * BATCH_SIZE:(i + 1) * BATCH_SIZE]
+                _, c = sess.run([optimizer, cost], feed_dict={self.x: epoch_x, self.y: epoch_y})
                 epoch_loss += c
-                    
-                print('Epoch progress... {0}%'.format(int(i/nBatches*100)), end='\r')    
-            print('Epoch: ', epoch+1, ', Loss: ', epoch_loss)
+
+                print('Epoch progress... {0}%'.format(int(i / nBatches * 100)), end='\r')
+            print('Epoch: ', epoch + 1, ', Loss: ', epoch_loss)
 
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
         accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
         print("Calculating accuracy on the training set...")
-        print("Train Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
+        print("Train Accuracy: ", accuracy.eval(feed_dict={self.x: data, self.y: outputs}, session=self.sess))
 
-        if name != None:
+        if name is not None:
             save_path = tf.train.Saver().save(sess, self.save_path())
             print("Model saved at... ", save_path)
 
@@ -80,12 +81,13 @@ class ResNet():
         correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(outputs, 1))
         accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
         print("Calculating accuracy on the testing set...")
-        print("Test Accuracy: ", accuracy.eval(feed_dict={self.x:data, self.y:outputs}, session=self.sess))
-        
+        print("Test Accuracy: ", accuracy.eval(feed_dict={self.x: data, self.y: outputs}, session=self.sess))
+
     def eval_model(self, data):
         prediction = self.model
         output = tf.cast(tf.argmax(prediction, 1), 'float')
-        print("Class: ", output.eval(feed_dict={self.x:data}, session=self.sess))
+        print("Class: ", output.eval(feed_dict={self.x: data}, session=self.sess))
+
 
 class ResNet_5(ResNet):
 
@@ -113,7 +115,7 @@ class ResNet_5(ResNet):
         model = utils.avg_pool(model, side, 1, padding='VALID')
         model = tf.reshape(model, [-1, 64])
         W = utils.weight_variable([64, nClasses], "layer_5_w")
-        model =  tf.add(tf.matmul(model, W), utils.bias_variable([nClasses], "layer_5_b"))
+        model = tf.add(tf.matmul(model, W), utils.bias_variable([nClasses], "layer_5_b"))
 
         # Save for later
         self.model = model

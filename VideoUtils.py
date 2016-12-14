@@ -24,7 +24,7 @@ def mm_ss_exclusions(file_path):
             (st_time, en_time) = re.findall(regex, line)[0]
             st_time = datetime.strptime(st_time, time_format) - zero
             en_time = datetime.strptime(en_time, time_format) - zero
-            ranges.append([st_time.total_seconds()*1000, en_time.total_seconds()*1000])
+            ranges.append([st_time.total_seconds() * 1000, en_time.total_seconds() * 1000])
 
     return ranges
 
@@ -88,8 +88,8 @@ class VideoLoader:
             if self.square_crop:
                 h = frame.shape[0]
                 w = frame.shape[1]
-                d = int((w-h)/2)
-                gray = gray[:, d:(w-d)] if d > 0 else gray[-d:(w+d), :]
+                d = int((w - h) / 2)
+                gray = gray[:, d:(w - d)] if d > 0 else gray[-d:(w + d), :]
             frames.append(gray)
             # cv2.imshow('frames', gray)
             i += 1
