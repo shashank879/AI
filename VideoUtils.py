@@ -1,13 +1,16 @@
 import cv2
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 
-def time_in_range(start, end, x):
-    """Return true if x is in the range [start, end]"""
+
+def time_in_range(start, end, curr):
+    """Return true if curr is in the range [start, end]"""
+
     if start <= end:
-        return start <= x <= end
+        return start <= curr <= end
     else:
         return False
+
 
 def mm_ss_exclusions(file_path):
     """Exclude ranges annotated in a file. """
@@ -25,14 +28,24 @@ def mm_ss_exclusions(file_path):
 
     return ranges
 
+
 class VideoLoader:
     """Class to aid loading of video frames in batches as training, test and validation data"""
 
-    def __init__(self, vid_path, batch_size=20, exclude_ranges=None):
+    def __init__(self, vid_path, batch_size=21, exclude_ranges=None, square_crop=False):
+        """Initialize the loader
+
+        Keyword Arguments:
+        vid_path -- Path to video
+        batch_size -- Number of frames to load in one batch
+        exclude_ranges -- Array of 2 element arrays, containing the times to exclude from the batches.
+        """
+
         self.vid_path = vid_path
         self.batch_size = batch_size
         self.vidcap = None
         self.exclude_ranges = exclude_ranges
+        self.square_crop = square_crop
         self.range_to_check = 0
 
     def __enter__(self):
@@ -72,20 +85,25 @@ class VideoLoader:
                 continue
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if self.square_crop:
+                h = frame.shape[0]
+                w = frame.shape[1]
+                d = int((w-h)/2)
+                gray = gray[:, d:(w-d)] if d > 0 else gray[-d:(w+d), :]
             frames.append(gray)
-            cv2.imshow('frames', gray)
+            # cv2.imshow('frames', gray)
             i += 1
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #     break
 
         return frames
 
-exclude_ranges = mm_ss_exclusions('./data/traffic_junction/Annotations_cleaned.txt')
-vl = VideoLoader(vid_path='./data/traffic_junction/traffic-junction.avi', exclude_ranges=exclude_ranges)
+# excl = mm_ss_exclusions('./data/traffic_junction/Annotations_cleaned.txt')
+# vl = VideoLoader(vid_path='./data/traffic_junction/traffic-junction.avi', exclude_ranges=excl)
 
-with vl:
-    while True:
-        batch = vl.fetch_next_batch()
-        if len(batch) is 0:
-            break
+# with vl:
+#     while True:
+#         batch = vl.fetch_next_batch()
+#         if len(batch) is 0:
+#             break
