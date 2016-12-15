@@ -32,7 +32,7 @@ def mm_ss_exclusions(file_path):
 class VideoLoader:
     """Class to aid loading of video frames in batches as training, test and validation data"""
 
-    def __init__(self, vid_path, batch_size=21, exclude_ranges=None, square_crop=False):
+    def __init__(self, vid_path, batch_size=21, exclude_ranges=None, square_crop=False, convert_to_gray=False):
         """Initialize the loader
 
         Keyword Arguments:
@@ -46,6 +46,7 @@ class VideoLoader:
         self.vidcap = None
         self.exclude_ranges = exclude_ranges
         self.square_crop = square_crop
+        self.convert_to_gray = convert_to_gray
         self.range_to_check = 0
 
     def __enter__(self):
@@ -84,14 +85,14 @@ class VideoLoader:
                 print("Skipping frame...", curr_time)
                 continue
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if self.convert_to_gray:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             if self.square_crop:
                 h = frame.shape[0]
                 w = frame.shape[1]
                 d = int((w - h) / 2)
-                gray = gray[:, d:(w - d)] if d > 0 else gray[-d:(w + d), :]
-            frames.append(gray)
-            # cv2.imshow('frames', gray)
+                frame = frame[:, d:(w - d)] if d > 0 else frame[-d:(w + d), :]
+            frames.append(frame)
             i += 1
 
             # if cv2.waitKey(1) & 0xFF == ord('q'):
